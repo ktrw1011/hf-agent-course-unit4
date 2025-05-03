@@ -1,4 +1,3 @@
-# HuggingFace Agent Course Unit4 Assessment
 ---
 title: HuggingFace Agent Course Unit4 Assessment
 emoji: 🤖
