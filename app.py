@@ -4,7 +4,7 @@ import gradio as gr
 import pandas as pd
 import requests
 
-from agent_for_unit4 import manager_agent, prepare_for_input, configure_open_telemetry
+from agent_for_unit4 import manager_agent, prepare_for_input
 
 # (Keep Constants as is)
 # --- Constants ---
