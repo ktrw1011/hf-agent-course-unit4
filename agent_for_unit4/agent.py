@@ -73,7 +73,7 @@ web_agent = CodeAgent(
 
 manager_agent = CodeAgent(
     model=LiteLLMModel(
-        model_id="openrouter/qwen/qwen3-32b",
+        model_id="openrouter/qwen/qwq-32b",
     ),
     tools=[
         fetch_text_content,  # fetch text content from a URL
