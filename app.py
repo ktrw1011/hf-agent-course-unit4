@@ -63,7 +63,6 @@ def run_and_submit_all(profile: gr.OAuthProfile | None):
         return f"An unexpected error occurred fetching questions: {e}", None
 
     # 3. Run your Agent
-    configure_open_telemetry()
     results_log = []
     answers_payload = []
     print(f"Running agent on {len(questions_data)} questions...")
