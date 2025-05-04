@@ -1,0 +1,58 @@
+[project]
+name = "agent-course-unit4"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = [
+    "beautifulsoup4>=4.13.4",
+    "gradio>=5.29.0",
+    "litellm==1.67.2",
+    "openpyxl>=3.1.5",
+    "smolagents[mcp,openai,telemetry]>=1.14.0",
+    "tabulate>=0.9.0",
+    "uv>=0.6.17",
+    "wikipedia>=1.4.0",
+    "wikipedia-api>=0.8.1",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.29.5",
+    "ipywidgets>=8.1.6",
+    "mypy>=1.15.0",
+    "ruff>=0.11.7",
+    "python-dotenv>=1.1.0",
+    "types-requests>=2.32.0.20250328",
+]
+
+[tool.ruff]
+line-length = 250
+target-version = "py312"
+
+[tool.mypy]
+check_untyped_defs = true
+disallow_any_decorated = false
+disallow_any_generics = false
+disallow_any_unimported = false
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+disallow_subclassing_any = false
+disallow_untyped_calls = false
+disallow_untyped_decorators = false
+ignore_errors = false
+ignore_missing_imports = true
+no_implicit_optional = true
+show_error_codes = true
+strict_equality = true
+strict_optional = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_no_return = true
+warn_unused_ignores = true
+color_output = true
+pretty = true
+
+exclude = "app.py"

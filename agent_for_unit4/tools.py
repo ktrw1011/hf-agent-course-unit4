@@ -1,15 +1,34 @@
 import os
-import re
-from io import BytesIO, StringIO
+from io import BytesIO
+from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import requests
-from bs4 import BeautifulSoup
 from huggingface_hub import InferenceClient
 from smolagents import Tool, tool
 
+from .db import ShelveDB
+from .wiki import get_wiki_content
+
+
+### convert table to markdown
+@tool
+def convert_pandas_table_to_markdown(table: pd.DataFrame) -> str:
+    """
+    Converts a pandas DataFrame to a markdown table.
+
+    Args:
+        table (pd.DataFrame): The DataFrame to convert.
+
+    Returns:
+        str: The markdown representation of the table.
+    """
+    return str(table.to_markdown())
+
 
 ### fetch text tool
+@tool
 def fetch_text_content(url: str) -> str:
     """
     Fetches the text content from a given URL.
@@ -28,106 +47,78 @@ def fetch_text_content(url: str) -> str:
         return f"Error fetching URL: {e}"
 
 
+### Storage Tool
+class RetrieveCSVStorageTool(Tool):
+    name = "retrieve_csv_storage_tool"
+    description = "Retrieves a CSV file from the storage and returns it as a pandas DataFrame."
+    inputs = {
+        "key": {
+            "type": "string",
+            "description": "The key to retrieve data from the table.",
+        },
+    }
+    output_type = "any"
+
+    def __init__(self, table_name: str, init_storage: bool, storage_path: str | None = None, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        if storage_path is not None:
+            ShelveDB.dir_path = Path(storage_path)
+        self.storage = ShelveDB[pd.DataFrame](table_name, init=init_storage)
+
+    def get_storage(self) -> ShelveDB[pd.DataFrame]:
+        return self.storage
+
+    def forward(self, key: str) -> pd.DataFrame:
+        try:
+            # Retrieve the CSV file from storage
+            dataframe = self.storage.fetch(key)
+        except Exception as e:
+            return f"Error retrieving data: {e}"
+        else:
+            if dataframe is None:
+                raise ValueError(f"No data found for key: {key}")
+            return dataframe
+
+
 ### Wikipedia Content Extraction Tool
 
 
-@tool
-def get_wiki_content(title: str, language: str = "en") -> tuple[str, dict[str, pd.DataFrame]]:
+class WikiTool(Tool):
+    name = "wiki_tool"
+    description = """Get Wikipedia page content and tables.
+    Returns a tuple containing the page content and a dictionary of tables extracted from the page.
+    The page content is prefixed with the retrieved table key ({{table_1}}, {{table_2}}, ...).
+    To understand what is contained in the tables, it is recommended to first display the content.
+    Example 1:
+        content, tables = get_wiki_content("Python_(programming_language)")
+        print(content)
+    
+    The retrieved table object is are stored in storage.
+    They can be retrieved using "retrieve_csv_storage_tool".
+    Example 2:
+        table:pd.DataFrame = retrieve_csv_storage_tool("table_1")
     """
-    Get Wikipedia page content and tables.
-
-    Args:
-        title: wikipedia page title (e.g., "Python_(programming_language)")
-        language: wikipedia language (e.g., "en" for English, "ja" for Japanese)
-
-    Returns:
-        A tuple containing the page content as a string and a dictionary of tables
-        extracted from the page. The keys of the dictionary are "table_1", "table_2", etc.
-        and the values are pandas DataFrames representing the tables.
-    """
-    # パースAPIのURLを構築
-    api_url = f"https://{language}.wikipedia.org/w/api.php"
-
-    # APIパラメータ
-    params = {
-        "action": "parse",
-        "page": title,
-        "format": "json",
-        "prop": "text",
-        "disabletoc": True,
+    inputs = {
+        "query": {
+            "type": "string",
+            "description": "The title of the Wikipedia page to visit. For example, 'Python_(programming_language)'.",
+        },
+        "language": {
+            "type": "string",
+            "description": "The language of the Wikipedia page. For example, 'en' for English, 'ja' for Japanese.",
+        },
     }
+    output_type = "array"
 
-    # リクエストを送信
-    response = requests.get(api_url, params=params, timeout=30)  # type: ignore
+    def __init__(self, storage: ShelveDB[Any], *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.storage = storage
 
-    # レスポンスをチェック
-    if response.status_code != 200:
-        print(f"エラー: APIリクエストが失敗しました (ステータスコード: {response.status_code})")
-        return "", {}
-
-    # JSONレスポンスをパース
-    data = response.json()
-
-    # エラーチェック
-    if "error" in data:
-        print(f"API エラー: {data['error']['info']}")
-        return "", {}
-
-    if "parse" not in data:
-        print(f"ページ '{title}' が見つかりませんでした")
-        return "", {}
-
-    # HTMLコンテンツを取得
-    html_content = data["parse"]["text"]["*"]
-
-    # テーブル情報を取得
-    tables_dict: dict[str, pd.DataFrame] = {}
-
-    # pd.read_htmlでテーブルをデータフレームとして抽出
-    html_io = StringIO(html_content)
-    dfs = pd.read_html(html_io)
-
-    # テーブルごとに処理し、辞書に格納
-    for i, df in enumerate(dfs):
-        table_key = f"table_{i + 1}"
-        tables_dict[table_key] = df
-
-    # オリジナルのHTMLをコピーして、テーブルをプレースホルダに置き換える
-    content_soup = BeautifulSoup(html_content, "html.parser")
-
-    # テーブルをプレースホルダに置き換え
-    for i, table in enumerate(content_soup.find_all("table", class_="wikitable")):
-        table_placeholder = content_soup.new_tag("p")
-        table_placeholder.string = f"{{{{table_{i + 1}}}}}"
-        table.replace_with(table_placeholder)
-
-    # クリーンな本文テキストを抽出（テーブルはプレースホルダに置き換え済み）
-    for element in content_soup.find_all(["sup", "div.hatnote", "div.navbox"]):
-        element.decompose()
-
-    # 見出しとパラグラフを取得
-    elements = content_soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6", "p"])
-    text_content = []
-
-    for element in elements:
-        if element.name.startswith("h"):  # type: ignore
-            level = int(element.name[1])  # type: ignore
-            heading_text = element.get_text().strip()
-            if heading_text:  # 空の見出しをスキップ
-                text_content.append("\n" + "#" * level + " " + heading_text)
-        elif element.name == "p":  # type: ignore
-            paragraph_text = element.get_text().strip()
-            if paragraph_text:  # 空のパラグラフをスキップ
-                # テーブルプレースホルダの場合はそのまま追加
-                if re.match(r"^\{\{table_\d+\}\}$", paragraph_text):
-                    text_content.append(paragraph_text)
-                else:
-                    text_content.append(paragraph_text)
-
-    # テキストコンテンツを結合
-    content = "\n\n".join(text_content)
-
-    return content, tables_dict
+    def forward(self, query: str, language: str) -> tuple[str, dict[str, pd.DataFrame]]:
+        content, tables = get_wiki_content(query, language)
+        for table_key, df in tables.items():
+            self.storage.save(table_key, df)
+        return content, tables
 
 
 ### Visual Question Answering Tool
@@ -148,7 +139,7 @@ class VisualQATool(Tool):
     inputs = {
         "image_url": {
             "type": "string",
-            "description": "The URL of the image to analyze.",
+            "description": "The URL of the image to analyze. No extension needed.",
         },
         "question": {
             "type": "string",
@@ -181,7 +172,7 @@ def request_speech_recognition(client: InferenceClient, audio_file: str, model: 
 class SpeechRecognitionTool(Tool):
     name = "speech_recognition"
     description = "Converts audio contents to text"
-    inputs = {"audio_url": {"type": "string", "description": "URL of the audio file to transcribe"}}
+    inputs = {"audio_url": {"type": "string", "description": "URL of the audio file to transcribe. No extension needed."}}
     output_type = "string"
     client = InferenceClient(provider="fal-ai")
     _model = "openai/whisper-large-v3"
@@ -202,7 +193,7 @@ def read_excel(file_url: str) -> pd.DataFrame:
     Reads an Excel file from a given URL and returns the data as a DataFrame.
 
     Args:
-        file_url (str): URL of the Excel file to read
+        file_url (str): URL of the Excel file to read. No extension needed.
     Returns:
         pd.DataFrame: DataFrame containing the data from the first sheet of the Excel file
     """
