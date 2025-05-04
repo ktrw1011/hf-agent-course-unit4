@@ -1,9 +1,40 @@
 import re
 from io import StringIO
+from typing import Any
 
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+
+
+def process_list_element(list_element: Any, indent: int = 0) -> str:
+    """リスト要素を再帰的に処理する関数"""
+    result = []
+
+    is_ordered = list_element.name == "ol"
+
+    for i, li in enumerate(list_element.find_all("li", recursive=False)):
+        # リスト項目のテキストを取得
+        # ネストされたリストを除いたテキストを取得
+        item_text = ""
+        for content in li.contents:
+            if content.name not in ["ul", "ol"]:
+                item_text += str(content)
+
+        item_text = BeautifulSoup(item_text, "html.parser").get_text().strip()
+
+        # 順序付きリストなら番号を、そうでなければ記号を使用
+        prefix = "  " * indent + (f"{i + 1}. " if is_ordered else "* ")
+        if item_text:
+            result.append(prefix + item_text)
+
+        # ネストされたリストを処理
+        for nested_list in li.find_all(["ul", "ol"], recursive=False):
+            nested_content = process_list_element(nested_list, indent + 1)
+            if nested_content:
+                result.append(nested_content)
+
+    return "\n".join(result)
 
 
 def get_wiki_content(title: str, language: str = "en") -> tuple[str, dict[str, pd.DataFrame]]:
@@ -119,8 +150,8 @@ def get_wiki_content(title: str, language: str = "en") -> tuple[str, dict[str, p
     for element in content_soup.find_all(["sup", "div.hatnote", "div.navbox", "span.mw-editsection"]):
         element.decompose()
 
-    # 見出しとパラグラフを取得
-    elements = content_soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6", "p"])
+    # 見出し、パラグラフ、リストを取得
+    elements = content_soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6", "p", "ul", "ol"])
     text_content = []
 
     for element in elements:
@@ -137,6 +168,11 @@ def get_wiki_content(title: str, language: str = "en") -> tuple[str, dict[str, p
                     text_content.append(paragraph_text)
                 else:
                     text_content.append(paragraph_text)
+        elif element.name in ["ul", "ol"] and element.parent.name not in ["li", "ul", "ol"]:  # type: ignore
+            # トップレベルのリストのみ処理（ネストされたものは親liで処理）
+            list_content = process_list_element(element)
+            if list_content:
+                text_content.append(list_content)
 
     # テキストコンテンツを結合
     content = "\n\n".join(text_content)

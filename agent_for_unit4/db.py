@@ -38,6 +38,11 @@ class ShelveDB(Generic[T]):
                 del db[key]
                 return True
             return False
+        
+    def clear(self) -> None:
+        with shelve.open(str(self.db_path)) as db:
+            for key in list(db.keys()):
+                del db[key]
 
     def list_keys(self) -> list[str]:
         with shelve.open(str(self.db_path)) as db:

@@ -116,6 +116,7 @@ class WikiTool(Tool):
 
     def forward(self, query: str, language: str) -> tuple[str, dict[str, pd.DataFrame]]:
         content, tables = get_wiki_content(query, language)
+        self.storage.clear()
         for table_key, df in tables.items():
             self.storage.save(table_key, df)
         return content, tables
