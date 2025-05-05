@@ -77,7 +77,7 @@ def run_and_submit_all(profile: gr.OAuthProfile | None):
             # === RUN AGENT ===
             input_text = prepare_for_input(item, FILE_BASE_URL)
             print(f"input_text:\n{input_text}")
-            submitted_answer = manager_agent(input_text)
+            submitted_answer = manager_agent.run(input_text)
             answers_payload.append({"task_id": task_id, "submitted_answer": submitted_answer})
             results_log.append({"Task ID": task_id, "Question": question_text, "Submitted Answer": submitted_answer})
             raise ValueError
