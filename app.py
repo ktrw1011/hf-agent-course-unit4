@@ -36,12 +36,6 @@ def run_and_submit_all(profile: gr.OAuthProfile | None):
     questions_url = f"{api_url}/questions"
     submit_url = f"{api_url}/submit"
 
-    # 1. Instantiate Agent ( modify this part to create your agent)
-    try:
-        agent = manager_agent
-    except Exception as e:
-        print(f"Error instantiating agent: {e}")
-        return f"Error initializing agent: {e}", None
     # In the case of an app running as a hugging Face space, this link points toward your codebase ( usefull for others so please keep it public)
     agent_code = f"https://huggingface.co/spaces/{space_id}/tree/main"
     print(agent_code)
@@ -80,10 +74,11 @@ def run_and_submit_all(profile: gr.OAuthProfile | None):
         try:
             # === RUN AGENT ===
             input_text = prepare_for_input(item, FILE_BASE_URL)
-            input_text = fix_input_text(input_text) # Remove unnecessary text, I don't understand why this happens...
-            submitted_answer = agent(input_text)
+            print(f"input_text:\n{input_text}")
+            submitted_answer = manager_agent(input_text)
             answers_payload.append({"task_id": task_id, "submitted_answer": submitted_answer})
             results_log.append({"Task ID": task_id, "Question": question_text, "Submitted Answer": submitted_answer})
+            raise ValueError
         except Exception as e:
             print(f"Error running agent on task {task_id}: {e}")
             results_log.append({"Task ID": task_id, "Question": question_text, "Submitted Answer": f"AGENT ERROR: {e}"})
