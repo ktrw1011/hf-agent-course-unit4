@@ -4,6 +4,7 @@ import gradio as gr
 import pandas as pd
 import requests
 
+import smolagents
 from agent_for_unit4 import manager_agent, prepare_for_input
 
 # (Keep Constants as is)
@@ -62,6 +63,7 @@ def run_and_submit_all(profile: gr.OAuthProfile | None):
         return f"An unexpected error occurred fetching questions: {e}", None
 
     # 3. Run your Agent
+    print(f"smolagents version: {smolagents.__version__}")
     results_log = []
     answers_payload = []
     print(f"Running agent on {len(questions_data)} questions...")
