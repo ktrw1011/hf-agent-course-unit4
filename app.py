@@ -11,6 +11,11 @@ from agent_for_unit4 import manager_agent, prepare_for_input
 DEFAULT_API_URL = "https://agents-course-unit4-scoring.hf.space"
 FILE_BASE_URL = "https://agents-course-unit4-scoring.hf.space/files/"
 
+def fix_input_text(input_text: str) -> str:
+    if "You're helping your manager solve a wider task:" in input_text:
+        input_text = input_text.split("You're helping your manager solve a wider task:")[0]
+    return input_text.strip()
+
 
 def run_and_submit_all(profile: gr.OAuthProfile | None):
     """
@@ -75,6 +80,7 @@ def run_and_submit_all(profile: gr.OAuthProfile | None):
         try:
             # === RUN AGENT ===
             input_text = prepare_for_input(item, FILE_BASE_URL)
+            input_text = fix_input_text(input_text) # Remove unnecessary text, I don't understand why this happens...
             submitted_answer = agent(input_text)
             answers_payload.append({"task_id": task_id, "submitted_answer": submitted_answer})
             results_log.append({"Task ID": task_id, "Question": question_text, "Submitted Answer": submitted_answer})

@@ -59,19 +59,20 @@ wiki_agent = CodeAgent(
 
 
 web_agent = CodeAgent(
+    name="web_agent",
+    description="A web agent that can search and visit webpages.",
     model=LiteLLMModel(model_id="openrouter/qwen/qwen-2.5-coder-32b-instruct"),
     tools=[
         DuckDuckGoSearchTool(max_results=10),
         VisitWebpageTool(),
     ],
-    name="web_agent",
-    description="A web agent that can search and visit webpages.",
     verbosity_level=2,
     max_steps=10,
 )
 
 
 manager_agent = CodeAgent(
+    name = "manager_agent",
     model=LiteLLMModel(
         model_id="openrouter/qwen/qwq-32b",
     ),
@@ -100,6 +101,7 @@ def parse_file_name(file_base_url: str, file_name: str) -> str:
 
 def prepare_for_input(question: dict, file_base_url: str) -> str:
     input_text = dedent(f"""\
+    Question:
     {question["question"]}
 
     If necessary, use the following file (they may not be provided)
