@@ -80,7 +80,6 @@ def run_and_submit_all(profile: gr.OAuthProfile | None):
             submitted_answer = manager_agent.run(input_text)
             answers_payload.append({"task_id": task_id, "submitted_answer": submitted_answer})
             results_log.append({"Task ID": task_id, "Question": question_text, "Submitted Answer": submitted_answer})
-            raise ValueError
         except Exception as e:
             print(f"Error running agent on task {task_id}: {e}")
             results_log.append({"Task ID": task_id, "Question": question_text, "Submitted Answer": f"AGENT ERROR: {e}"})
